@@ -1,16 +1,16 @@
-import Hero from "@/components/home/Hero";
-import Sections from "@/components/Sections";
-import { Bestsellers, CategoryTiles, PvcRange } from "@/components/home/HomeShop";
+import type { Metadata } from "next";
+import Tour from "@/components/tour/Tour";
+import VisualizerGate from "@/components/tour/VisualizerGate";
+
+export const metadata: Metadata = {
+  title: "3D Room Visualizer · Lath & Line",
+  description: "Photoreal 3D Wall Panel & Marble Visualizer for Interiors.",
+};
 
 export default function Home() {
   return (
-    <>
-      {/* a photo hero so the shop opens instantly; the 3D house has its own page, /visualizer */}
-      <Hero />
-      <div className="pt-20"><CategoryTiles /></div>
-      <PvcRange />
-      <Bestsellers />
-      <Sections />
-    </>
+    <VisualizerGate>
+      <Tour startInDesign={true} />
+    </VisualizerGate>
   );
 }

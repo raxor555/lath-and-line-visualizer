@@ -96,7 +96,7 @@ export default function Tour({ startInDesign = false }: { startInDesign?: boolea
   };
 
   return (
-    <section ref={section} id="tour" aria-label="Walk into the house" className={startInDesign ? "relative mt-[101px] h-[calc(100svh-101px)] overflow-hidden [--dp-top:20px]" : "relative h-[720svh]"}>
+    <section ref={section} id="tour" aria-label="Walk into the house" className={startInDesign ? "relative h-svh w-full overflow-hidden [--dp-top:64px]" : "relative h-[720svh]"}>
       <div className={startInDesign ? "h-full w-full" : "sticky top-0 h-svh"}>
         <div ref={frame} className="absolute inset-0 overflow-hidden bg-sand" style={{ clipPath: startInDesign ? "none" : "inset(12px round 28px)" }}>
           <SceneGuard><Scene /></SceneGuard>

@@ -89,7 +89,7 @@ export default function VisualizerGate({ children }: { children: ReactNode }) {
 
   const pct = phase.k === "downloading" ? Math.min(100, Math.round((phase.done / Math.max(1, phase.total)) * 100)) : 0;
   return (
-    <section aria-label="3D visualizer download" className="relative mt-[101px] h-[calc(100svh-101px)] overflow-hidden bg-[#1c1916]">
+    <section aria-label="3D visualizer download" className="relative h-svh w-full overflow-hidden bg-[#1c1916]">
       {/* still WPC slat wall: the visualizer's theme, no animation competing with the download */}
       <div aria-hidden className="absolute inset-0 flex gap-[0.6%] px-[0.6%] opacity-90">
         {Array.from({ length: 24 }, (_, i) => (
@@ -111,11 +111,11 @@ export default function VisualizerGate({ children }: { children: ReactNode }) {
                 : phase.update ? "The showroom has been updated. Download the new files once and it opens instantly again."
                 : "The photoreal 3D room downloads once and stays on this device, so every visit after this opens instantly."}
             </p>
-            <button onClick={() => download(phase.missing)} className="mt-5 inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-ink text-[15px] font-medium text-paper transition hover:bg-black">
+            <button onClick={() => download(phase.missing)} className="mt-5 inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-ink text-[15px] font-medium text-paper transition hover:bg-black cursor-pointer">
               {phase.k === "failed" ? <RotateCw className="size-4" /> : <Download className="size-4" />}
               {phase.k === "failed" ? "Try again" : "Download and open"} · {mb(phase.bytes)}
             </button>
-            <p className="mt-3 font-mono text-[11px] text-muted">{LITE ? "Phone version: lighter files, same room." : "Full-quality version for this computer."} One time only.</p>
+            <p className="mt-3 font-mono text-[11px] text-muted">{LITE ? "Phone version: lighter files, same room." : "Full 4K quality version for this computer."} One time only.</p>
           </>
         )}
 
@@ -129,7 +129,9 @@ export default function VisualizerGate({ children }: { children: ReactNode }) {
           </>
         )}
 
-        <Link href="/shop" className="mt-5 inline-flex items-center gap-1.5 text-[13px] text-ink-2 hover:text-ink"><ArrowLeft className="size-3.5" /> Back to the shop</Link>
+        <a href="https://lath-and-line-studio.vercel.app" target="_blank" rel="noopener noreferrer" className="mt-5 inline-flex items-center gap-1.5 text-[13px] text-ink-2 hover:text-ink">
+          <ArrowLeft className="size-3.5" /> Visit Main Shop
+        </a>
       </div>
     </section>
   );
