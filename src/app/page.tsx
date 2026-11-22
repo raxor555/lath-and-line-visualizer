@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default function Home() {
   return (
     <VisualizerGate>
-      <Tour startInDesign={true} />
+      <Tour />
     </VisualizerGate>
   );
 }
