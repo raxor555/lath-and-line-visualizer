@@ -21,6 +21,9 @@ export function tex(path: string, { srgb = false, rot = 0 }: { srgb?: boolean; r
   const t = loader.load(lite(`/textures/${path}`), (l) => onLoad(l));
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.anisotropy = aniso;
+  t.generateMipmaps = true;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.magFilter = THREE.LinearFilter;
   if (srgb) t.colorSpace = THREE.SRGBColorSpace;
   if (rot) { t.center.set(0.5, 0.5); t.rotation = rot; }
   cache.set(key, t);

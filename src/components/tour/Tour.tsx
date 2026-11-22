@@ -44,8 +44,20 @@ export default function Tour() {
       return () => clearTimeout(timer);
     }
 
+    // Lock accidental scrolling: scrolling down outside enters room; inside room, wheel never kicks you out!
+    const onWheel = (e: WheelEvent) => {
+      if (tour.target < 0.2 && e.deltaY > 20) {
+        enterRoom();
+      } else if (tour.target > 0.5) {
+        // inside room: prevent accidental scroll jumps
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("wheel", onWheel, { passive: false });
+
     return () => {
       tour.listeners.delete(fn);
+      window.removeEventListener("wheel", onWheel);
     };
   }, []);
 

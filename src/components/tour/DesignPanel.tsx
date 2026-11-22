@@ -191,13 +191,45 @@ export default function DesignPanel({ onStepOutside }: DesignPanelProps) {
 
               {f && (
                 <div className="mt-3 grid gap-3">
-                  {/* Width slider */}
+                  {/* Width slider & Quick Presets */}
                   <div>
                     <div className="flex items-baseline justify-between text-[11.5px] text-ink-2">
-                      <span>Width</span>
-                      <span className="font-mono text-[11px]">{cfg.width.toFixed(2)} m</span>
+                      <span>Wall Coverage</span>
+                      <span className="font-mono text-[11px] font-medium">{cfg.width.toFixed(2)} m</span>
                     </div>
-                    <div className="mt-1 flex items-center gap-1.5">
+
+                    {/* Quick Coverage Presets */}
+                    <div className="mt-1 flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => update(active, { width: Math.max(f.module, Math.round(2.4 / f.module) * f.module), center: 0 })}
+                        className={`h-6 rounded-md px-2 text-[10px] font-medium transition cursor-pointer ${
+                          Math.abs(cfg.width - 2.4) < 0.3 ? "bg-ink text-paper" : "bg-white/80 text-ink-2 hover:bg-white"
+                        }`}
+                      >
+                        Accent (2.4m)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => update(active, { width: Math.max(f.module, Math.round(3.6 / f.module) * f.module), center: 0 })}
+                        className={`h-6 rounded-md px-2 text-[10px] font-medium transition cursor-pointer ${
+                          Math.abs(cfg.width - 3.6) < 0.3 ? "bg-ink text-paper" : "bg-white/80 text-ink-2 hover:bg-white"
+                        }`}
+                      >
+                        Media Wall (3.6m)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => update(active, { width: maxW, center: 0 })}
+                        className={`h-6 rounded-md px-2 text-[10px] font-medium transition cursor-pointer ${
+                          Math.abs(cfg.width - maxW) < 0.1 ? "bg-ink text-paper" : "bg-white/80 text-ink-2 hover:bg-white"
+                        }`}
+                      >
+                        Full Wall
+                      </button>
+                    </div>
+
+                    <div className="mt-1.5 flex items-center gap-1.5">
                       <button
                         aria-label="Narrower"
                         onClick={() => update(active, { width: cfg.width - f.module })}

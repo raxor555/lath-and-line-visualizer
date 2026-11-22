@@ -20,15 +20,56 @@ function finishMaterial(f: Finish) {
   const hit = matCache.get(f.id);
   if (hit) return hit;
   let m: THREE.Material;
-  if (f.kind === "fluted") m = new THREE.MeshPhysicalMaterial({ color: f.color, roughness: 0.42, sheen: 0, clearcoat: 0.15, clearcoatRoughness: 0.4, envMapIntensity: 0.45 });
-  else if (f.kind === "slat") { const s = pbr(f.tex!, { roughness: 0.62, envMapIntensity: 0.4 }, { rot: f.texRotation ?? 0 }); if (f.tint) s.color.set(f.tint); m = s; }
-  else if (f.kind === "marble") m = new THREE.MeshPhysicalMaterial({ map: tex(`${f.tex}/diff.jpg`, { srgb: true }), roughness: 0.1, clearcoat: 0.7, clearcoatRoughness: 0.06, envMapIntensity: 0.6 });
-  else if (f.kind === "jaali") {
-    m = new THREE.MeshStandardMaterial({ color: f.tint ?? f.color ?? 0xffffff, roughness: 0.6, envMapIntensity: 0.4, alphaMap: jaaliTex(), alphaTest: 0.5 });
+  if (f.kind === "fluted") {
+    // Matte architectural PVC flute, authentic interior finish without harsh plastic glints
+    m = new THREE.MeshStandardMaterial({
+      color: f.color,
+      roughness: 0.82,
+      metalness: 0.04,
+      envMapIntensity: 0.12,
+    });
+  } else if (f.kind === "slat") {
+    // Real acoustic timber slat: warm, matte wood texture, zero shimmer on edges
+    const s = pbr(f.tex!, { roughness: 0.88, metalness: 0.02, envMapIntensity: 0.12 }, { rot: f.texRotation ?? 0, ns: 0.35 });
+    if (f.tint) s.color.set(f.tint);
+    m = s;
+  } else if (f.kind === "marble") {
+    // Satin architectural UV marble: gentle diffused interior reflection, not a mirror
+    m = new THREE.MeshPhysicalMaterial({
+      map: tex(`${f.tex}/diff.jpg`, { srgb: true }),
+      roughness: 0.36,
+      clearcoat: 0.18,
+      clearcoatRoughness: 0.35,
+      envMapIntensity: 0.22,
+      metalness: 0.04,
+    });
+  } else if (f.kind === "jaali") {
+    m = new THREE.MeshStandardMaterial({
+      color: f.tint ?? f.color ?? 0xffffff,
+      roughness: 0.78,
+      metalness: 0.04,
+      envMapIntensity: 0.14,
+      alphaMap: jaaliTex(),
+      alphaTest: 0.5,
+    });
     if (f.tex) (m as THREE.MeshStandardMaterial).map = tex(`${f.tex}/diff.jpg`, { srgb: true, rot: Math.PI / 2 });
+  } else if (f.tex) {
+    m = new THREE.MeshStandardMaterial({
+      map: tex(`${f.tex}/diff.jpg`, { srgb: true }),
+      roughness: 0.82,
+      metalness: 0.03,
+      envMapIntensity: 0.15,
+    });
+  } else {
+    m = new THREE.MeshStandardMaterial({
+      color: f.color,
+      roughness: 0.95,
+      metalness: 0.02,
+      envMapIntensity: 0.12,
+      normalMap: tex("wool_boucle/nor.jpg"),
+      normalScale: new THREE.Vector2(0.2, 0.2),
+    });
   }
-  else if (f.tex) m = new THREE.MeshStandardMaterial({ map: tex(`${f.tex}/diff.jpg`, { srgb: true }), roughness: 0.55, envMapIntensity: 0.35 });
-  else m = new THREE.MeshStandardMaterial({ color: f.color, roughness: 0.95, envMapIntensity: 0.35, normalMap: tex("wool_boucle/nor.jpg"), normalScale: new THREE.Vector2(0.35, 0.35) });
   bakeWall(m as THREE.MeshStandardMaterial);
   matCache.set(f.id, m);
   return m;

@@ -30,8 +30,8 @@ const BACKDROP_ROT = new THREE.Euler(0, THREE.MathUtils.degToRad(-81.4 + 180), 0
 const SUN_POS = new THREE.Vector3(-0.702 * Math.cos(0.244), Math.sin(0.244), 0.712 * Math.cos(0.244)).multiplyScalar(30);
 
 export const VIEWS: Record<WallId, { pos: [number, number, number]; look: [number, number, number] }> = {
-  feature: { pos: [0, 1.42, -1.75], look: [0, 1.36, -9.75] },
-  side: { pos: [1.6, 1.42, -5.0], look: [-7.75, 1.36, -5.2] },
+  feature: { pos: [0, 1.38, -5.2], look: [0, 1.4, -9.75] },
+  side: { pos: [0.8, 1.38, -5.0], look: [-7.75, 1.38, -5.2] },
 };
 const KP = [0, 0.2, 0.4, 0.6, 0.84];
 const V = (a: number[]) => new THREE.Vector3(a[0], a[1], a[2]);
@@ -113,8 +113,8 @@ function configureScene(gl: THREE.WebGLRenderer, scene: THREE.Scene, sky: THREE.
   // upload each texture to the GPU the moment it arrives, instead of mid-scroll when it first comes into view
   setOnTextureLoad((t) => { gl.initTexture(t); invalidate(); });
   setLightmapReady((t) => { gl.initTexture(t); invalidate(); });
-  // matches the Blender renders: AgX at +1 EV
-  gl.toneMappingExposure = 2.3;
+  // realistic interior architectural exposure: AgX balanced, matte highlights without blown-out glare
+  gl.toneMappingExposure = 1.25;
   tour.invalidate = invalidate;
   sky.mapping = THREE.EquirectangularReflectionMapping;
   sky.colorSpace = THREE.SRGBColorSpace;
@@ -562,7 +562,7 @@ function Effects() {
   // ambient occlusion and bounce light are in the bake; only bloom on the lamps, AgX and anti-aliasing remain
   return (
     <EffectComposer multisampling={0} enableNormalPass={false}>
-      <Bloom luminanceThreshold={1.0} luminanceSmoothing={0.2} intensity={0.3} mipmapBlur />
+      <Bloom luminanceThreshold={1.2} luminanceSmoothing={0.25} intensity={0.12} mipmapBlur />
       <ToneMapping mode={ToneMappingMode.AGX} />
       {/* AgX alone is flatter than Blender's "AgX - Base Contrast" look the bake was judged with */}
       <BrightnessContrast brightness={-0.01} contrast={0.14} />
