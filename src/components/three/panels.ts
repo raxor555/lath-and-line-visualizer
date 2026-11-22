@@ -161,24 +161,68 @@ function adhesive(w: number, mat: THREE.Material) {
   return g;
 }
 
+function buildSinglePanelGroup(f: Finish, w: number, dir: "v" | "h") {
+  const mat = finishMaterial(f), horiz = dir === "h" && supportsDirection(f);
+  let inner: THREE.Object3D;
+  if (f.kind === "fluted" || f.kind === "slat") {
+    const across = horiz ? IH : w, along = horiz ? w : IH;
+    inner = new THREE.Group();
+    inner.add(f.kind === "fluted" ? fluted(across, along, mat) : slats(across, along, mat));
+    if (horiz) {
+      inner.rotation.z = Math.PI / 2;
+      inner.position.set(w / 2, IH / 2, 0);
+    }
+  } else inner = f.kind === "marble" ? marble(w, mat) : f.kind === "jaali" ? jaali(w, f, mat) : adhesive(w, mat);
+  return inner;
+}
+
 export function buildPanels(cfg: WallConfig) {
   const f = finishById(cfg.pid);
   if (!f) return null;
-  const mat = finishMaterial(f), horiz = cfg.dir === "h" && supportsDirection(f);
-  const outer = new THREE.Group(); outer.position.x = cfg.center;
-  let inner: THREE.Object3D;
-  if (f.kind === "fluted" || f.kind === "slat") {
-    const across = horiz ? IH : cfg.width, along = horiz ? cfg.width : IH;
-    inner = new THREE.Group();
-    inner.add(f.kind === "fluted" ? fluted(across, along, mat) : slats(across, along, mat));
-    // built vertically; rotating +90° about z maps x∈[-IH/2,IH/2], y∈[0,w] to x∈[-w,0], y∈[-IH/2,IH/2]
-    if (horiz) { inner.rotation.z = Math.PI / 2; inner.position.set(cfg.width / 2, IH / 2, 0); }
-  } else inner = f.kind === "marble" ? marble(cfg.width, mat) : f.kind === "jaali" ? jaali(cfg.width, f, mat) : adhesive(cfg.width, mat);
-  outer.add(inner);
-  for (const x of [-cfg.width / 2 - 0.006, cfg.width / 2 + 0.006]) {
-    const t = new THREE.Mesh(new THREE.BoxGeometry(0.012, IH, 0.024), wallCopy("black"));
-    t.position.set(x, IH / 2, 0.012); t.castShadow = true; outer.add(t);
+  const outer = new THREE.Group();
+  outer.position.x = cfg.center;
+
+  // 1. Center Section
+  const centerObj = buildSinglePanelGroup(f, cfg.width, cfg.dir);
+  outer.add(centerObj);
+
+  let totalWidth = cfg.width;
+
+  // 2. Multi-finish Combination (Flanking wings e.g. Marble Center + Slat Wings)
+  if (cfg.combo && cfg.wingsPid) {
+    const wf = finishById(cfg.wingsPid);
+    if (wf) {
+      const wingW = cfg.wingsWidth ?? 0.6;
+      totalWidth = cfg.width + wingW * 2;
+
+      // Left Flanking Wing
+      const leftWing = buildSinglePanelGroup(wf, wingW, "v");
+      leftWing.position.x = -cfg.width / 2 - wingW / 2;
+      outer.add(leftWing);
+
+      // Right Flanking Wing
+      const rightWing = buildSinglePanelGroup(wf, wingW, "v");
+      rightWing.position.x = cfg.width / 2 + wingW / 2;
+      outer.add(rightWing);
+
+      // Interior Accent Separation Trims
+      for (const divX of [-cfg.width / 2, cfg.width / 2]) {
+        const div = new THREE.Mesh(new THREE.BoxGeometry(0.008, IH, 0.025), wallCopy("black"));
+        div.position.set(divX, IH / 2, 0.013);
+        div.castShadow = true;
+        outer.add(div);
+      }
+    }
   }
+
+  // 3. Outer Edge Finishing Profiles
+  for (const x of [-totalWidth / 2 - 0.006, totalWidth / 2 + 0.006]) {
+    const t = new THREE.Mesh(new THREE.BoxGeometry(0.012, IH, 0.024), wallCopy("black"));
+    t.position.set(x, IH / 2, 0.012);
+    t.castShadow = true;
+    outer.add(t);
+  }
+
   return outer;
 }
 

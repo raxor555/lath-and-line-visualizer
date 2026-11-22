@@ -30,8 +30,8 @@ const BACKDROP_ROT = new THREE.Euler(0, THREE.MathUtils.degToRad(-81.4 + 180), 0
 const SUN_POS = new THREE.Vector3(-0.702 * Math.cos(0.244), Math.sin(0.244), 0.712 * Math.cos(0.244)).multiplyScalar(30);
 
 export const VIEWS: Record<WallId, { pos: [number, number, number]; look: [number, number, number] }> = {
-  feature: { pos: [0, 1.38, -5.2], look: [0, 1.4, -9.75] },
-  side: { pos: [0.8, 1.38, -5.0], look: [-7.75, 1.38, -5.2] },
+  feature: { pos: [0, 1.42, -1.75], look: [0, 1.36, -9.75] },
+  side: { pos: [1.6, 1.42, -5.0], look: [-7.75, 1.36, -5.2] },
 };
 const KP = [0, 0.2, 0.4, 0.6, 0.84];
 const V = (a: number[]) => new THREE.Vector3(a[0], a[1], a[2]);
@@ -187,12 +187,22 @@ function trackPointer(c: RigCtx, invalidate: () => void) {
   return () => { window.removeEventListener("pointermove", onMove); unsub(); };
 }
 
-function followDaylight(l: THREE.DirectionalLight) { l.intensity = 2.6 * LIGHTS.day.value; }
+function followDaylight(l: THREE.DirectionalLight) { l.intensity = 2.8 * LIGHTS.day.value; }
 
 function Sun() {
   const sun = useMemo(() => {
-    const l = new THREE.DirectionalLight(0xffcfa3, 2.6);
+    const l = new THREE.DirectionalLight(0xfff1e2, 2.8);
     l.position.copy(SUN_POS); l.target.position.set(0, 0, -4);
+    l.castShadow = true;
+    l.shadow.mapSize.set(2048, 2048);
+    l.shadow.bias = -0.0002;
+    l.shadow.normalBias = 0.02;
+    l.shadow.camera.near = 0.5;
+    l.shadow.camera.far = 70;
+    l.shadow.camera.left = -16;
+    l.shadow.camera.right = 16;
+    l.shadow.camera.top = 16;
+    l.shadow.camera.bottom = -16;
     return l;
   }, []);
   useFrame(() => followDaylight(sun));

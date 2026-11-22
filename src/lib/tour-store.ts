@@ -23,10 +23,17 @@ function clampCfg(id: WallId, c: WallConfig): WallConfig {
   const f = finishById(c.pid);
   if (!f) return c;
   const len = WALLS[id].length;
-  const max = Math.floor((len - 0.02) / f.module) * f.module;
+  const wingsW = c.combo && c.wingsPid ? (c.wingsWidth ?? 0.6) * 2 : 0;
+  const max = Math.max(f.module, Math.floor((len - 0.02 - wingsW) / f.module) * f.module);
   const width = Math.min(max, Math.max(f.module, Math.round(c.width / f.module) * f.module));
-  const lim = (len - width) / 2;
-  return { ...c, width, center: Math.min(lim, Math.max(-lim, c.center)), dir: f.kind === "fluted" || f.kind === "slat" ? c.dir : "v" };
+  const totalW = width + wingsW;
+  const lim = Math.max(0, (len - totalW) / 2);
+  return {
+    ...c,
+    width,
+    center: Math.min(lim, Math.max(-lim, c.center)),
+    dir: f.kind === "fluted" || f.kind === "slat" ? c.dir : "v",
+  };
 }
 
 export const useTour = create<TourState>((set) => ({

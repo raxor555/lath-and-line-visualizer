@@ -39,7 +39,6 @@ export const FINISHES: Finish[] = [
   { id: "slat-walnut", collection: "WPC Acoustic Slat", name: "Smoked Walnut", kind: "slat", tex: "european_walnut_veneer_04", texRotation: Math.PI / 2, tint: 0x9a7a62, module: 0.6, unit: "panel", size: "600 × 3000 mm", price: 7400, swatch: "repeating-linear-gradient(90deg,transparent 0 9px,#1d1b19 9px 13px),linear-gradient(#6b4b37cc,#6b4b37cc),url(/textures/european_walnut_veneer_04/diff.jpg) center/180%" },
   { id: "marble-statuario", collection: "UV Marble Sheet", name: "Statuario", kind: "marble", tex: "marble_statuario", module: 1.22, unit: "sheet", size: "1220 × 2440 mm (4 × 8 ft)", price: 5800, swatch: "url(/textures/marble_statuario/diff.jpg) center/cover" },
   { id: "marble-nero", collection: "UV Marble Sheet", name: "Nero Marquina", kind: "marble", tex: "marble_nero", module: 1.22, unit: "sheet", size: "1220 × 2440 mm (4 × 8 ft)", price: 6200, swatch: "url(/textures/marble_nero/diff.jpg) center/cover" },
-  // CNC-cut jaali in the Mughal star-and-cross lattice, fitted 25 mm proud of a warm LED-lit backing
   { id: "jaali-shalimar", collection: "CNC Jaali Panel", name: "Shalimar Walnut", kind: "jaali", tex: "european_walnut_veneer_04", tint: 0x8a6a52, glow: 0xffd9a8, module: 1.22, unit: "sheet", size: "1220 × 2440 mm · 12 mm MDF", price: 14500, swatch: jaaliSwatch("#5b3d2b", "#f3cf9c") },
   { id: "jaali-ivory", collection: "CNC Jaali Panel", name: "Mughal Ivory", kind: "jaali", color: 0xefe8dc, glow: 0xe9c79a, module: 1.22, unit: "sheet", size: "1220 × 2440 mm · 12 mm MDF", price: 12900, swatch: jaaliSwatch("#f4eee4", "#b98a5c") },
   { id: "adh-terrazzo", collection: "Adhesive Sheet", name: "Terrazzo", kind: "adhesive", tex: "terrazzo", module: 0.6, unit: "roll", size: "0.6 × 3 m roll", price: 950, swatch: "url(/textures/terrazzo/diff.jpg) center/160%" },
@@ -50,24 +49,61 @@ export const finishById = (id: string | null) => FINISHES.find((f) => f.id === i
 export const supportsDirection = (f: Finish | null) => !!f && (f.kind === "fluted" || f.kind === "slat");
 
 export type WallId = "feature" | "side";
-export type WallConfig = { pid: string | null; width: number; center: number; dir: "v" | "h" };
+export type WallConfig = {
+  pid: string | null;
+  width: number;
+  center: number;
+  dir: "v" | "h";
+  combo?: boolean;
+  wingsPid?: string | null;
+  wingsWidth?: number;
+};
 
 export const WALLS: Record<WallId, { label: string; length: number }> = {
   feature: { label: "Feature wall", length: 15.5 },
   side: { label: "Side wall", length: 9.5 },
 };
 
+function calcQty(f: Finish, w: number, dir: "v" | "h") {
+  const horiz = dir === "h" && supportsDirection(f);
+  if (f.kind === "fluted") return horiz ? Math.ceil(WALL_HEIGHT / 0.16) * Math.ceil(w / 2.9) : Math.max(1, Math.round(w / 0.16));
+  if (f.kind === "slat") return horiz ? Math.ceil(WALL_HEIGHT / 0.6) * Math.ceil(w / 3) : Math.max(1, Math.round(w / 0.6));
+  if (f.kind === "marble" || f.kind === "jaali") return Math.max(2, Math.round(w / 1.22) * 2);
+  return Math.max(1, Math.round(w / 0.6));
+}
+
 export function estimate(cfg: WallConfig) {
   const f = finishById(cfg.pid);
   if (!f) return null;
-  const horiz = cfg.dir === "h" && supportsDirection(f);
-  const w = cfg.width;
-  let qty: number;
-  if (f.kind === "fluted") qty = horiz ? Math.ceil(WALL_HEIGHT / 0.16) * Math.ceil(w / 2.9) : Math.round(w / 0.16);
-  else if (f.kind === "slat") qty = horiz ? Math.ceil(WALL_HEIGHT / 0.6) * Math.ceil(w / 3) : Math.round(w / 0.6);
-  else if (f.kind === "marble" || f.kind === "jaali") qty = Math.round(w / 1.22) * 2;
-  else qty = Math.round(w / 0.6);
-  return { finish: f, area: w * WALL_HEIGHT, qty, total: qty * f.price };
+  
+  const centerQty = calcQty(f, cfg.width, cfg.dir);
+  const centerTotal = centerQty * f.price;
+
+  let wingsEstimate = null;
+  if (cfg.combo && cfg.wingsPid) {
+    const wf = finishById(cfg.wingsPid);
+    if (wf) {
+      const ww = (cfg.wingsWidth ?? 0.6) * 2; // both left & right wings combined
+      const wingsQty = calcQty(wf, ww, "v");
+      wingsEstimate = {
+        finish: wf,
+        widthPerSide: cfg.wingsWidth ?? 0.6,
+        qty: wingsQty,
+        total: wingsQty * wf.price,
+      };
+    }
+  }
+
+  const grandTotal = centerTotal + (wingsEstimate ? wingsEstimate.total : 0);
+
+  return {
+    finish: f,
+    area: cfg.width * WALL_HEIGHT,
+    qty: centerQty,
+    centerTotal,
+    wings: wingsEstimate,
+    total: grandTotal,
+  };
 }
 
 export const money = (n: number) => "Rs " + Math.round(n).toLocaleString("en-US");
