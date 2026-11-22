@@ -30,14 +30,18 @@ const BACKDROP_ROT = new THREE.Euler(0, THREE.MathUtils.degToRad(-81.4 + 180), 0
 const SUN_POS = new THREE.Vector3(-0.702 * Math.cos(0.244), Math.sin(0.244), 0.712 * Math.cos(0.244)).multiplyScalar(30);
 
 export const VIEWS: Record<WallId, { pos: [number, number, number]; look: [number, number, number] }> = {
+  feature: { pos: [0, 1.45, -5.3], look: [0, 1.40, -9.75] },
+  side: { pos: [-3.4, 1.45, -5.0], look: [-7.75, 1.40, -5.0] },
+};
+export const OVERVIEW_VIEWS: Record<WallId, { pos: [number, number, number]; look: [number, number, number] }> = {
   feature: { pos: [0, 1.42, -1.75], look: [0, 1.36, -9.75] },
   side: { pos: [1.6, 1.42, -5.0], look: [-7.75, 1.36, -5.2] },
 };
 const KP = [0, 0.2, 0.4, 0.6, 0.84];
 const V = (a: number[]) => new THREE.Vector3(a[0], a[1], a[2]);
 // the hero frames the house the way an architectural photographer would: close, at eye height, front-right
-const posCurve = new THREE.CatmullRomCurve3([[8.6, 1.55, 16.5], [4.2, 1.85, 10.5], [-0.4, 1.66, 4.6], [-0.4, 1.58, -0.6], VIEWS.feature.pos].map(V), false, "centripetal");
-const lookCurve = new THREE.CatmullRomCurve3([[0.2, 2.55, -3], [-0.4, 1.8, -1], [-0.4, 1.56, -3], [-0.15, 1.45, -9.75], VIEWS.feature.look].map(V), false, "centripetal");
+const posCurve = new THREE.CatmullRomCurve3([[8.6, 1.55, 16.5], [4.2, 1.85, 10.5], [-0.4, 1.66, 4.6], [-0.4, 1.58, -0.6], [0, 1.45, -5.3]].map(V), false, "centripetal");
+const lookCurve = new THREE.CatmullRomCurve3([[0.2, 2.55, -3], [-0.4, 1.8, -1], [-0.4, 1.56, -3], [-0.15, 1.45, -9.75], [0, 1.40, -9.75]].map(V), false, "centripetal");
 const mapP = (p: number) => { if (p >= KP[KP.length - 1]) return 1; let i = 0; while (p > KP[i + 1]) i++; return (i + (p - KP[i]) / (KP[i + 1] - KP[i])) / (KP.length - 1); };
 
 const doorRef: { current: THREE.Group | null } = { current: null };
@@ -152,8 +156,18 @@ function stepRig(state: RootState, dt: number, c: RigCtx) {
   const m = c.mouse;
   if (Math.abs(m.tx - m.x) + Math.abs(m.ty - m.y) > 0.0005) { m.x += (m.tx - m.x) * k * 0.3; m.y += (m.ty - m.y) * k * 0.3; moving = true; }
 
+  const overview = useTour.getState().roomOverview;
+  const currentSide = overview ? OVERVIEW_VIEWS.side : VIEWS.side;
+  c.sp.set(currentSide.pos[0], currentSide.pos[1], currentSide.pos[2]);
+  c.sl.set(currentSide.look[0], currentSide.look[1], currentSide.look[2]);
+
   const p = tour.current, u = mapP(p);
   posCurve.getPoint(u, c.tp); lookCurve.getPoint(u, c.tl);
+  if (overview && p > 0.84) {
+    const ovW = smooth(0.84, 0.98, p);
+    c.tp.lerp(V(OVERVIEW_VIEWS.feature.pos), ovW);
+    c.tl.lerp(V(OVERVIEW_VIEWS.feature.look), ovW);
+  }
   const b = c.side * smooth(0.84, 0.92, p);
   if (b > 0) { c.tp.lerp(c.sp, b); c.tl.lerp(c.sl, b); }
   // gentle parallax on the hero and in design mode
@@ -219,7 +233,11 @@ function prepareBaked(root: THREE.Object3D, own: boolean) {
     const key = nearestKey(mesh); if (!key) return;
     // the two configurable walls are drawn by <Wall>, which also handles drag and drop
     if (key === "wallF" || key === "wallS") { mesh.visible = false; return; }
-    const src = mesh.material as THREE.MeshStandardMaterial, name = src.name;
+    const src = mesh.material as THREE.MeshStandardMaterial, name = src?.name ?? "";
+    if (name === "modern_wooden_cabinet" || mesh.name.toLowerCase().includes("cabinet")) {
+      mesh.visible = false;
+      return;
+    }
     if (UNBAKED.has(name)) { mesh.material = M[name]; return; }
     const id = `${name}|${key}`;
     let m = cache.get(id) as THREE.MeshStandardMaterial | undefined;

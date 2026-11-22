@@ -21,14 +21,16 @@ function finishMaterial(f: Finish) {
   if (hit) return hit;
   let m: THREE.Material;
   if (f.kind === "fluted") {
-    // Architectural Fluted Panel: satin sheen with fine micro-surface grain
+    // Architectural Fluted Panel: tactile plaster/acrylic texture, vertex AO shadows, satin sheen
     m = new THREE.MeshStandardMaterial({
       color: f.color,
+      map: tex("plastered_wall_04/diff.jpg", { srgb: true }),
+      vertexColors: true,
       roughness: 0.44,
       metalness: 0.02,
       normalMap: tex("painted_plaster_wall/nor.jpg"),
-      normalScale: new THREE.Vector2(0.18, 0.18),
-      envMapIntensity: 0.4,
+      normalScale: new THREE.Vector2(0.22, 0.22),
+      envMapIntensity: 0.45,
     });
   } else if (f.kind === "slat") {
     // 4K WPC Acoustic Timber Slat: rich wood pores, warm organic luster, no harsh specular glare
@@ -84,33 +86,44 @@ function finishMaterial(f: Finish) {
   return m;
 }
 
-/** Half-round flutes, 28 mm wide, 11 mm deep, with a panel seam every 6 flutes (160 mm). */
+/** Half-round flutes, 28 mm wide, 11 mm deep, with geometric ambient occlusion in valleys. */
 function fluted(across: number, along: number, mat: THREE.Material) {
-  const fw = 0.028, depth = 0.011, seg = 14, perPanel = 6;
+  const fw = 0.028, depth = 0.012, seg = 14, perPanel = 6;
   const n = Math.max(1, Math.round(across / fw)), cols = n * seg;
-  const xs: number[] = [], zs: number[] = [];
+  const xs: number[] = [], zs: number[] = [], aos: number[] = [];
   for (let i = 0; i <= cols; i++) {
     const f = i / seg, fi = Math.floor(f), fr = f - fi, s = (fr - 0.5) * 2;
-    let z = depth * Math.sqrt(Math.max(0, 1 - s * s * 0.92));
-    if ((fi % perPanel === 0 && fr < 0.04) || i === cols) z = -0.001;
-    xs.push((i / cols) * across - across / 2); zs.push(z);
+    let z = depth * Math.sqrt(Math.max(0, 1 - s * s * 0.90));
+    // Geometric ambient occlusion in the valley recesses:
+    let ao = 0.55 + 0.45 * (1.0 - Math.abs(s));
+    if ((fi % perPanel === 0 && fr < 0.04) || i === cols) {
+      z = -0.001;
+      ao = 0.38;
+    }
+    xs.push((i / cols) * across - across / 2);
+    zs.push(z);
+    aos.push(ao);
   }
-  const pos: number[] = [], nor: number[] = [], uv: number[] = [], idx: number[] = [];
+  const pos: number[] = [], nor: number[] = [], uv: number[] = [], colors: number[] = [], idx: number[] = [];
   const nv = new THREE.Vector3();
   for (let i = 0; i <= cols; i++) {
     const a = Math.max(0, i - 1), b = Math.min(cols, i + 1);
     nv.set(-(zs[b] - zs[a]) / (xs[b] - xs[a] || 1), 0, 1).normalize();
     pos.push(xs[i], 0, zs[i], xs[i], along, zs[i]);
     nor.push(nv.x, nv.y, nv.z, nv.x, nv.y, nv.z);
-    uv.push((xs[i] / 0.16) * 1.0, 0, (xs[i] / 0.16) * 1.0, along / 0.9);
+    uv.push((xs[i] / 0.16) * 1.5, 0, (xs[i] / 0.16) * 1.5, along / 0.9);
+    const ao = aos[i];
+    colors.push(ao, ao, ao, ao, ao, ao);
     if (i < cols) { const k = i * 2; idx.push(k, k + 2, k + 1, k + 1, k + 2, k + 3); }
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
   g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+  g.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
   g.setIndex(idx);
-  const m = new THREE.Mesh(g, mat); m.castShadow = m.receiveShadow = true;
+  const m = new THREE.Mesh(g, mat);
+  m.castShadow = m.receiveShadow = true;
   return m;
 }
 

@@ -10,6 +10,8 @@ type TourState = {
   toggleLight: (g: LightGroup) => void;
   walls: Record<WallId, WallConfig>;
   designOn: boolean;
+  roomOverview: boolean;
+  toggleRoomOverview: () => void;
   /** the 3D scene has compiled and drawn its first frame; until then the hero shows the rendered poster */
   ready: boolean;
   setReady: () => void;
@@ -39,6 +41,8 @@ function clampCfg(id: WallId, c: WallConfig): WallConfig {
 export const useTour = create<TourState>((set) => ({
   active: "feature",
   designOn: false,
+  roomOverview: false,
+  toggleRoomOverview: () => set((s) => ({ roomOverview: !s.roomOverview })),
   ready: false,
   setReady: () => set({ ready: true }),
   lights: { day: true, spots: true, lamps: true },

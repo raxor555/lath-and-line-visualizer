@@ -35,6 +35,7 @@ interface DesignPanelProps {
 export default function DesignPanel({ onStepOutside }: DesignPanelProps) {
   const designOn = useTour((s) => s.designOn);
   const active = useTour((s) => s.active);
+  const roomOverview = useTour((s) => s.roomOverview);
   const cfg = useTour((s) => s.walls[s.active]);
   const { setActive, update, setFinish } = useTour.getState();
   const lights = useTour((s) => s.lights);
@@ -161,6 +162,15 @@ export default function DesignPanel({ onStepOutside }: DesignPanelProps) {
               </button>
             ))}
           </div>
+
+          {/* Wall Focus vs Room View Toggle */}
+          <button
+            onClick={() => useTour.getState().toggleRoomOverview()}
+            className="glass flex items-center gap-1 rounded-full h-7 sm:h-8 px-2.5 text-[11px] sm:text-[12px] font-medium text-ink-2 hover:text-ink transition hover:bg-white shadow-sm cursor-pointer"
+            title="Toggle between close-up wall focus and wide room overview"
+          >
+            <span>{roomOverview ? "🛋️ Wide Room" : "🔍 Wall Focus"}</span>
+          </button>
 
           {/* Combo Wall Quick Toggle */}
           <button
