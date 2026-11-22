@@ -21,34 +21,43 @@ function finishMaterial(f: Finish) {
   if (hit) return hit;
   let m: THREE.Material;
   if (f.kind === "fluted") {
-    // Matte architectural PVC flute, authentic interior finish without harsh plastic glints
+    // Architectural Fluted Panel: satin sheen with fine micro-surface grain
     m = new THREE.MeshStandardMaterial({
       color: f.color,
-      roughness: 0.82,
-      metalness: 0.04,
-      envMapIntensity: 0.12,
+      roughness: 0.44,
+      metalness: 0.02,
+      normalMap: tex("painted_plaster_wall/nor.jpg"),
+      normalScale: new THREE.Vector2(0.18, 0.18),
+      envMapIntensity: 0.4,
     });
   } else if (f.kind === "slat") {
-    // Real acoustic timber slat: warm, matte wood texture, zero shimmer on edges
-    const s = pbr(f.tex!, { roughness: 0.88, metalness: 0.02, envMapIntensity: 0.12 }, { rot: f.texRotation ?? 0, ns: 0.35 });
+    // 4K WPC Acoustic Timber Slat: rich wood pores, warm organic luster, no harsh specular glare
+    const s = pbr(
+      f.tex!,
+      { roughness: 0.62, metalness: 0.01, envMapIntensity: 0.32 },
+      { rot: f.texRotation ?? 0, ns: 0.45 }
+    );
     if (f.tint) s.color.set(f.tint);
     m = s;
   } else if (f.kind === "marble") {
-    // Satin architectural UV marble: gentle diffused interior reflection, not a mirror
+    // Luxury UV Marble Sheet: High-gloss UV resin lacquer with crystalline stone depth & reflections
     m = new THREE.MeshPhysicalMaterial({
       map: tex(`${f.tex}/diff.jpg`, { srgb: true }),
-      roughness: 0.36,
-      clearcoat: 0.18,
-      clearcoatRoughness: 0.35,
-      envMapIntensity: 0.22,
-      metalness: 0.04,
+      normalMap: tex(`${f.tex}/nor.jpg`),
+      normalScale: new THREE.Vector2(0.25, 0.25),
+      roughnessMap: tex(`${f.tex}/rough.jpg`),
+      roughness: 0.12,
+      clearcoat: 0.88,
+      clearcoatRoughness: 0.06,
+      envMapIntensity: 0.9,
+      metalness: 0.02,
     });
   } else if (f.kind === "jaali") {
     m = new THREE.MeshStandardMaterial({
       color: f.tint ?? f.color ?? 0xffffff,
-      roughness: 0.78,
-      metalness: 0.04,
-      envMapIntensity: 0.14,
+      roughness: 0.72,
+      metalness: 0.03,
+      envMapIntensity: 0.2,
       alphaMap: jaaliTex(),
       alphaTest: 0.5,
     });
@@ -56,16 +65,16 @@ function finishMaterial(f: Finish) {
   } else if (f.tex) {
     m = new THREE.MeshStandardMaterial({
       map: tex(`${f.tex}/diff.jpg`, { srgb: true }),
-      roughness: 0.82,
+      roughness: 0.65,
       metalness: 0.03,
-      envMapIntensity: 0.15,
+      envMapIntensity: 0.25,
     });
   } else {
     m = new THREE.MeshStandardMaterial({
       color: f.color,
-      roughness: 0.95,
+      roughness: 0.85,
       metalness: 0.02,
-      envMapIntensity: 0.12,
+      envMapIntensity: 0.18,
       normalMap: tex("wool_boucle/nor.jpg"),
       normalScale: new THREE.Vector2(0.2, 0.2),
     });
@@ -75,15 +84,15 @@ function finishMaterial(f: Finish) {
   return m;
 }
 
-/** Half-round flutes, 26 mm wide, 11 mm deep, with a panel seam every 6 flutes (160 mm). */
+/** Half-round flutes, 28 mm wide, 11 mm deep, with a panel seam every 6 flutes (160 mm). */
 function fluted(across: number, along: number, mat: THREE.Material) {
-  const fw = 0.026, depth = 0.011, seg = 10, perPanel = 6;
+  const fw = 0.028, depth = 0.011, seg = 14, perPanel = 6;
   const n = Math.max(1, Math.round(across / fw)), cols = n * seg;
   const xs: number[] = [], zs: number[] = [];
   for (let i = 0; i <= cols; i++) {
     const f = i / seg, fi = Math.floor(f), fr = f - fi, s = (fr - 0.5) * 2;
-    let z = depth * Math.sqrt(Math.max(0, 1 - s * s * 0.94));
-    if ((fi % perPanel === 0 && fr < 0.05) || i === cols) z = -0.0015;
+    let z = depth * Math.sqrt(Math.max(0, 1 - s * s * 0.92));
+    if ((fi % perPanel === 0 && fr < 0.04) || i === cols) z = -0.001;
     xs.push((i / cols) * across - across / 2); zs.push(z);
   }
   const pos: number[] = [], nor: number[] = [], uv: number[] = [], idx: number[] = [];
@@ -93,7 +102,7 @@ function fluted(across: number, along: number, mat: THREE.Material) {
     nv.set(-(zs[b] - zs[a]) / (xs[b] - xs[a] || 1), 0, 1).normalize();
     pos.push(xs[i], 0, zs[i], xs[i], along, zs[i]);
     nor.push(nv.x, nv.y, nv.z, nv.x, nv.y, nv.z);
-    uv.push(xs[i], 0, xs[i], along);
+    uv.push((xs[i] / 0.16) * 1.0, 0, (xs[i] / 0.16) * 1.0, along / 0.9);
     if (i < cols) { const k = i * 2; idx.push(k, k + 2, k + 1, k + 1, k + 2, k + 3); }
   }
   const g = new THREE.BufferGeometry();
@@ -105,9 +114,9 @@ function fluted(across: number, along: number, mat: THREE.Material) {
   return m;
 }
 
-/** 27 mm slats on a 40 mm pitch over black acoustic felt. */
+/** 27 mm slats on a 40 mm pitch over soft charcoal acoustic felt. Depth 14 mm avoids grazing-angle moiré. */
 function slats(across: number, along: number, mat: THREE.Material) {
-  const g = new THREE.Group(), pitch = 0.04, sw = 0.027, d = 0.021, n = Math.floor(across / pitch), mt = new THREE.Matrix4();
+  const g = new THREE.Group(), pitch = 0.04, sw = 0.027, d = 0.014, n = Math.floor(across / pitch), mt = new THREE.Matrix4();
   for (let k = 0; k < 4; k++) {
     const geo = scaleBoxUV(new THREE.BoxGeometry(sw, along, d), sw, along, d, 0.9);
     const uv = geo.attributes.uv as THREE.BufferAttribute;

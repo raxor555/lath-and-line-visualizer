@@ -1,3 +1,6 @@
-/** Phones and small tablets. Decides which copy of each 3D file loads (the `_m` copies are half size) and which
- *  set the visualizer's one-time download fetches. One rule, shared, so the two always agree. */
-export const LITE = typeof window !== "undefined" && (window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 820);
+/** Only actual low-memory small-screen mobile phones use lite assets.
+ *  Laptops, desktops, and tablets always load full 4K ultra-quality textures and models. */
+export const LITE =
+  typeof window !== "undefined" &&
+  window.innerWidth < 640 &&
+  /Android|iPhone|iPod/i.test(navigator.userAgent);

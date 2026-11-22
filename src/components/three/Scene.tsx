@@ -55,16 +55,16 @@ const manifestReady = () => (manifestP ??= loadManifest());
    The tier drops automatically when the GPU can't hold ~50 fps while the camera moves,
    Desktop never goes below tier 1 (post-fx and SMAA stay on), and a drop lasts only for the current tab session:
    a laptop that was hot once must not be stuck on low quality for every later visit. */
-const QKEY = "ll-quality-v3";
-const FLOOR = LITE ? -1 : 1;
+const QKEY = "ll-quality-v4";
+const FLOOR = LITE ? 0 : 2;
 /** phones and small tablets: lightest tier, smaller sky, half the planting */
 // ?q=0|1|2 pins a tier (for testing) and turns the automatic drop off
 const pinned = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("q");
-// tiers: 2 full · 1 lighter post-fx · 0 no post-fx · -1 "lite": below 1x resolution and no round bushes
-const readTier = () => { if (pinned !== null) return Math.max(-1, Math.min(2, +pinned)); try { const v = sessionStorage.getItem(QKEY); return v === null ? (LITE ? 0 : 2) : Math.max(FLOOR, Math.min(2, +v)); } catch { return LITE ? 0 : 2; } };
+// tiers: 2 full · 1 lighter post-fx · 0 no post-fx
+const readTier = () => { if (pinned !== null) return Math.max(0, Math.min(2, +pinned)); return LITE ? 1 : 2; };
 export const useQuality = create<{ tier: number; drop: () => void }>((set, get) => ({
   tier: typeof window === "undefined" ? 2 : readTier(),
-  drop: () => { const tier = Math.max(FLOOR, get().tier - 1); try { sessionStorage.setItem(QKEY, String(tier)); } catch {} set({ tier }); },
+  drop: () => { if (LITE) { const tier = Math.max(FLOOR, get().tier - 1); set({ tier }); } },
 }));
 const perf = { sum: 0, n: 0, skip: 30 };
 function samplePerf(dt: number) {
@@ -532,19 +532,14 @@ function Rig() {
 const flags = typeof window === "undefined" ? new URLSearchParams() : new URLSearchParams(window.location.search);
 const off = (k: string) => flags.has("no" + k);
 
-const DPR: Record<number, number> = { [-1]: 0.85, 0: 1, 1: 1.25, 2: 1.5 };
-
 export default function Scene() {
-  const tier = useQuality((q) => q.tier);
-  const maxDpr = typeof window === "undefined" ? 1 : tier < 0 ? DPR[-1] : Math.max(1, Math.min(window.devicePixelRatio, DPR[tier]));
-  const fx = !off("fx") && tier > 0;
+  const maxDpr = typeof window === "undefined" ? 1 : Math.max(1, Math.min(window.devicePixelRatio || 1, 2.0));
+  const fx = !off("fx");
   return (
     <Canvas
       dpr={[Math.min(1, maxDpr), maxDpr]}
       frameloop="demand"
       camera={{ fov: 40, near: 0.05, far: 600, position: [8.6, 1.55, 16.5] }}
-      // the renderer only tone-maps when drawing straight to the screen (tier 0);
-      // with post-processing the ToneMapping effect does it instead
       gl={{ antialias: true, powerPreference: "high-performance", stencil: false, toneMapping: THREE.AgXToneMapping }}
       style={{ position: "absolute", inset: 0, touchAction: "pan-y" }}
     >
@@ -572,10 +567,10 @@ function Effects() {
   // ambient occlusion and bounce light are in the bake; only bloom on the lamps, AgX and anti-aliasing remain
   return (
     <EffectComposer multisampling={0} enableNormalPass={false}>
-      <Bloom luminanceThreshold={1.2} luminanceSmoothing={0.25} intensity={0.12} mipmapBlur />
+      <Bloom luminanceThreshold={1.25} luminanceSmoothing={0.3} intensity={0.08} mipmapBlur />
       <ToneMapping mode={ToneMappingMode.AGX} />
       {/* AgX alone is flatter than Blender's "AgX - Base Contrast" look the bake was judged with */}
-      <BrightnessContrast brightness={-0.01} contrast={0.14} />
+      <BrightnessContrast brightness={-0.01} contrast={0.12} />
       <SMAA />
     </EffectComposer>
   );

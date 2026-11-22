@@ -14,8 +14,8 @@ const liteOf = (p) => p.replace(/\.(jpg|webp|glb)$/, "_m.$1");
 const PLANTS = ["olive_tree", "veg_shrubB", "veg_grassA", "veg_grassB", "veg_bushRound", "veg_palm"];
 const common = ["draco/draco_decoder.wasm", "draco/draco_wasm_wrapper.js", "draco/draco_decoder.js",
   "lightmaps/lightmaps.json", "hdri/env_golden.hdr", "hdri/interior.hdr", "models/house.glb"];
-// textures: everything the site uses (walnut_veneer is only for the Blender bake)
-const textures = walk("textures").filter((p) => !p.startsWith("textures/walnut_veneer/") && /\.(jpg|png|webp)$/.test(p));
+// textures: everything the visualizer uses (including 4K walnut_veneer and marble normal/rough maps)
+const textures = walk("textures").filter((p) => /\.(jpg|png|webp)$/.test(p));
 const lightmaps = walk("lightmaps").filter((p) => p.endsWith(".webp"));
 
 const desktop = [...common, "hdri/sky_golden.jpg", "models/furniture.glb",

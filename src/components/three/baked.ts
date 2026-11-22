@@ -120,7 +120,7 @@ export function bakeWall(m: THREE.MeshStandardMaterial) {
           vec3 n0 = feat ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
           vec3 L = normalize(feat ? vec3(0.0, 1.0, 0.6) : vec3(0.6, 1.0, 0.0));
           vec3 nw = normalize(inverseTransformDirection(normal, viewMatrix));
-          float relief = clamp(max(dot(nw, L), 0.0) / dot(n0, L), 0.3, 1.7);
+          float relief = clamp(mix(1.0, max(dot(nw, L), 0.0) / dot(n0, L), 0.5), 0.75, 1.25);
           vec3 lmE = feat ? (${sum("lmF", "luv", "relief")}) : (${sum("lmS", "luv", "relief")});
           irradiance += PI * lmE;
         }

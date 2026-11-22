@@ -8,8 +8,8 @@ export const lite = (path: string) => (LITE ? path.replace(/\.(jpg|webp|glb)$/, 
 
 const loader = new THREE.TextureLoader();
 const cache = new Map<string, THREE.Texture>();
-let aniso = 8;
-export const setAnisotropy = (n: number) => { aniso = Math.min(8, n); };
+let aniso = 16;
+export const setAnisotropy = (n: number) => { aniso = Math.min(16, n); };
 export const getAnisotropy = () => aniso;
 let onLoad: (t: THREE.Texture) => void = () => {};
 export const setOnTextureLoad = (fn: (t: THREE.Texture) => void) => { onLoad = fn; };
@@ -50,9 +50,9 @@ export const materials = () => (M ??= createMaterials());
    Everything else comes baked from Blender (see baked.ts); creating more here would download unused textures. */
 function createMaterials() {
   return {
-    black: new THREE.MeshStandardMaterial({ color: 0x1a1918, roughness: 0.45, metalness: 0.5 }),
-    felt: new THREE.MeshStandardMaterial({ color: 0x1b1a18, roughness: 1, envMapIntensity: 0.2 }),
-    backing: new THREE.MeshStandardMaterial({ color: 0x242220, roughness: 0.8 }),
+    black: new THREE.MeshStandardMaterial({ color: 0x141413, roughness: 0.35, metalness: 0.7 }),
+    felt: new THREE.MeshStandardMaterial({ color: 0x2c2a28, roughness: 0.95, envMapIntensity: 0.25 }),
+    backing: new THREE.MeshStandardMaterial({ color: 0x22201e, roughness: 0.8 }),
   };
 }
 
