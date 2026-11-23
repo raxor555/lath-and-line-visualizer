@@ -6,7 +6,7 @@ import { create } from "zustand";
 import { Canvas, useFrame, useLoader, useThree, type RootState, type ThreeEvent } from "@react-three/fiber";
 import { HDRLoader } from "three/examples/jsm/loaders/HDRLoader.js";
 import { Environment, useGLTF, useTexture } from "@react-three/drei";
-import { EffectComposer, Bloom, BrightnessContrast, ToneMapping, SMAA } from "@react-three/postprocessing";
+import { EffectComposer, Bloom, BrightnessContrast, ToneMapping } from "@react-three/postprocessing";
 import { ToneMappingMode } from "postprocessing";
 import { FINISHES, WALL_HEIGHT as IH, type WallId } from "@/lib/finishes";
 import { tour, useTour } from "@/lib/tour-store";
@@ -29,9 +29,10 @@ const BACKDROP_ROT = new THREE.Euler(0, THREE.MathUtils.degToRad(-81.4 + 180), 0
 // 45° front-left, 14° up: rakes across the facade so the trees throw long shadows on it
 const SUN_POS = new THREE.Vector3(-0.702 * Math.cos(0.244), Math.sin(0.244), 0.712 * Math.cos(0.244)).multiplyScalar(30);
 
+/* Design view: standing back about 6.4 m, so the whole fitted wall, floor to ceiling, is in frame with the room around it. */
 export const VIEWS: Record<WallId, { pos: [number, number, number]; look: [number, number, number] }> = {
-  feature: { pos: [0, 1.45, -5.3], look: [0, 1.40, -9.75] },
-  side: { pos: [-3.4, 1.45, -5.0], look: [-7.75, 1.40, -5.0] },
+  feature: { pos: [0, 1.5, -3.35], look: [0, 1.42, -9.75] },
+  side: { pos: [-1.3, 1.5, -5.0], look: [-7.75, 1.42, -5.0] },
 };
 export const OVERVIEW_VIEWS: Record<WallId, { pos: [number, number, number]; look: [number, number, number] }> = {
   feature: { pos: [0, 1.42, -1.75], look: [0, 1.36, -9.75] },
@@ -40,8 +41,8 @@ export const OVERVIEW_VIEWS: Record<WallId, { pos: [number, number, number]; loo
 const KP = [0, 0.2, 0.4, 0.6, 0.84];
 const V = (a: number[]) => new THREE.Vector3(a[0], a[1], a[2]);
 // the hero frames the house the way an architectural photographer would: close, at eye height, front-right
-const posCurve = new THREE.CatmullRomCurve3([[8.6, 1.55, 16.5], [4.2, 1.85, 10.5], [-0.4, 1.66, 4.6], [-0.4, 1.58, -0.6], [0, 1.45, -5.3]].map(V), false, "centripetal");
-const lookCurve = new THREE.CatmullRomCurve3([[0.2, 2.55, -3], [-0.4, 1.8, -1], [-0.4, 1.56, -3], [-0.15, 1.45, -9.75], [0, 1.40, -9.75]].map(V), false, "centripetal");
+const posCurve = new THREE.CatmullRomCurve3([[8.6, 1.55, 16.5], [4.2, 1.85, 10.5], [-0.4, 1.66, 4.6], [-0.4, 1.58, -0.6], VIEWS.feature.pos].map(V), false, "centripetal");
+const lookCurve = new THREE.CatmullRomCurve3([[0.2, 2.55, -3], [-0.4, 1.8, -1], [-0.4, 1.56, -3], [-0.15, 1.45, -9.75], VIEWS.feature.look].map(V), false, "centripetal");
 const mapP = (p: number) => { if (p >= KP[KP.length - 1]) return 1; let i = 0; while (p > KP[i + 1]) i++; return (i + (p - KP[i]) / (KP[i + 1] - KP[i])) / (KP.length - 1); };
 
 const doorRef: { current: THREE.Group | null } = { current: null };
@@ -54,31 +55,55 @@ const INSIDE_FROM = 0.6;
 let manifestP: Promise<unknown> | null = null;
 const manifestReady = () => (manifestP ??= loadManifest());
 
-/* ---------- adaptive quality ----------
-   2: bloom + SMAA at up to 1.5× DPR   1: the same at 1.25×   0: no post-processing, native MSAA, 1×.
-   The tier drops automatically when the GPU can't hold ~50 fps while the camera moves,
-   Desktop never goes below tier 1 (post-fx and SMAA stay on), and a drop lasts only for the current tab session:
-   a laptop that was hot once must not be stuck on low quality for every later visit. */
-const QKEY = "ll-quality-v4";
-const FLOOR = LITE ? 0 : 2;
-/** phones and small tablets: lightest tier, smaller sky, half the planting */
-// ?q=0|1|2 pins a tier (for testing) and turns the automatic drop off
+/* ---------- render resolution (anti-shimmer) ----------
+   From across the room a slat gap, a flute joint or a jaali bar is about one pixel wide. With one sample per
+   pixel it lands on a pixel in one frame and between pixels in the next, and that is the shimmer. So the scene is
+   drawn with 4× MSAA always, and supersampled (up to 2× the screen's resolution each way) on GPUs that can afford
+   it: up to 16 coverage samples a pixel, which turns those sub-pixel lines into steady, correctly weighted tones.
+   tier 3: 2× · 2: 1.6× · 1: 1.3× · 0: the screen's own density. Every visit starts one tier above the one this
+   device settled on last time; while the camera moves, ~20 frames are timed and, below 45 fps, the tier drops
+   straight to the one the measured frame time says will hold 55 fps. Phones stay at native density (memory). */
+const SCALES = [1, 1.3, 1.6, 2];
+const TOP = SCALES.length - 1;
+// ?msaa=N overrides the sample count (for testing)
+export const MSAA = typeof window === "undefined" ? 4 : +(new URLSearchParams(window.location.search).get("msaa") ?? 4);
+const QKEY = "ll-res-tier-v1";
+const nativeDpr = () => (typeof window === "undefined" ? 1 : Math.min(window.devicePixelRatio || 1, 2));
+export const dprFor = (tier: number) => (LITE ? nativeDpr() : Math.max(nativeDpr(), SCALES[tier]));
+// ?q=0..3 pins a tier (for testing) and turns the automatic drop off
 const pinned = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("q");
-// tiers: 2 full · 1 lighter post-fx · 0 no post-fx
-const readTier = () => { if (pinned !== null) return Math.max(0, Math.min(2, +pinned)); return LITE ? 1 : 2; };
-export const useQuality = create<{ tier: number; drop: () => void }>((set, get) => ({
-  tier: typeof window === "undefined" ? 2 : readTier(),
-  drop: () => { if (LITE) { const tier = Math.max(FLOOR, get().tier - 1); set({ tier }); } },
+const readTier = () => {
+  if (pinned !== null) return Math.max(0, Math.min(TOP, +pinned));
+  try { const s = localStorage.getItem(QKEY); if (s !== null) return Math.min(TOP, +s + 1); } catch {}
+  return TOP;
+};
+export const useQuality = create<{ tier: number; settle: (tier: number) => void }>((set) => ({
+  tier: typeof window === "undefined" ? TOP : readTier(),
+  settle: (tier) => { set({ tier }); try { localStorage.setItem(QKEY, String(tier)); } catch {} },
 }));
-const perf = { sum: 0, n: 0, skip: 30 };
+/** applies the tier's resolution to the canvas */
+function Resolution() {
+  const setDpr = useThree((s) => s.setDpr);
+  const tier = useQuality((q) => q.tier);
+  useEffect(() => { setDpr(dprFor(tier)); }, [setDpr, tier]);
+  return null;
+}
+const perf = { sum: 0, n: 0, skip: 8, kept: false };
 function samplePerf(dt: number) {
-  if (dt > 0.25) return; // first frame after idle
+  if (LITE || pinned !== null || dt > 0.5) return; // dt > 0.5: first frame after idle
   if (perf.skip > 0) { perf.skip--; return; }
   perf.sum += dt; perf.n++;
-  if (perf.n < 40) return;
+  if (perf.n < 20) return;
   const fps = perf.n / perf.sum; perf.sum = 0; perf.n = 0;
   const q = useQuality.getState();
-  if (fps < 50 && q.tier > FLOOR && pinned === null) { perf.skip = 45; q.drop(); }
+  if (fps >= 45) { if (!perf.kept) { perf.kept = true; q.settle(q.tier); } return; }
+  if (q.tier === 0) return;
+  // frame time scales with pixel count (dpr²): pick the largest scale expected to hold 55 fps
+  const want = dprFor(q.tier) * Math.sqrt(fps / 55);
+  let t = q.tier - 1;
+  while (t > 0 && dprFor(t) > want) t--;
+  perf.skip = 8; perf.kept = false;
+  q.settle(t);
 }
 
 /* The sky photo is drawn on a camera-centred sphere instead of scene.background: three.js converts an equirect
@@ -133,11 +158,11 @@ function configureScene(gl: THREE.WebGLRenderer, scene: THREE.Scene, sky: THREE.
 }
 
 function Setup() {
-  const { gl, invalidate, scene } = useThree();
+  const { gl, invalidate, scene, camera } = useThree();
   const sky = useTexture(LITE ? "/hdri/sky_golden_m.jpg" : "/hdri/sky_golden.jpg");
   useLayoutEffect(() => configureScene(gl, scene, sky, () => invalidate()), [gl, invalidate, scene, sky]);
   // ?debug exposes the renderer for memory checks in the console: __ll.gl.info
-  useEffect(() => { if (flags.has("debug")) Object.assign(window, { __ll: { gl, scene } }); }, [gl, scene]);
+  useEffect(() => { if (flags.has("debug")) Object.assign(window, { __ll: { gl, scene, camera } }); }, [gl, scene, camera]);
   return null;
 }
 
@@ -551,14 +576,15 @@ const flags = typeof window === "undefined" ? new URLSearchParams() : new URLSea
 const off = (k: string) => flags.has("no" + k);
 
 export default function Scene() {
-  const maxDpr = typeof window === "undefined" ? 1 : Math.max(1, Math.min(window.devicePixelRatio || 1, 2.0));
   const fx = !off("fx");
   return (
     <Canvas
-      dpr={[Math.min(1, maxDpr), maxDpr]}
+      dpr={dprFor(useQuality.getState().tier)}
       frameloop="demand"
       camera={{ fov: 40, near: 0.05, far: 600, position: [8.6, 1.55, 16.5] }}
-      gl={{ antialias: true, powerPreference: "high-performance", stencil: false, toneMapping: THREE.AgXToneMapping }}
+      // with post-processing on, the composer's own multisampled target does the anti-aliasing; a multisampled
+      // canvas on top of it would only cost memory
+      gl={{ antialias: !fx, powerPreference: "high-performance", stencil: false, toneMapping: THREE.AgXToneMapping }}
       style={{ position: "absolute", inset: 0, touchAction: "pan-y" }}
     >
       <Suspense fallback={null}>
@@ -575,6 +601,7 @@ export default function Scene() {
       </Suspense>
       {!off("trees") && LITE && <LateLandscape />}
       <Rig />
+      <Resolution />
       <DropTarget />
       {fx && <Effects />}
     </Canvas>
@@ -582,14 +609,15 @@ export default function Scene() {
 }
 
 function Effects() {
-  // ambient occlusion and bounce light are in the bake; only bloom on the lamps, AgX and anti-aliasing remain
+  // ambient occlusion and bounce light are in the bake; only bloom on the lamps and AgX remain.
+  // Anti-aliasing is real geometry sampling (MSAA × supersampling, see SCALES), not an edge-blur pass,
+  // so wood grain and marble veins stay sharp.
   return (
-    <EffectComposer multisampling={0} enableNormalPass={false}>
+    <EffectComposer multisampling={MSAA} enableNormalPass={false}>
       <Bloom luminanceThreshold={1.25} luminanceSmoothing={0.3} intensity={0.08} mipmapBlur />
       <ToneMapping mode={ToneMappingMode.AGX} />
       {/* AgX alone is flatter than Blender's "AgX - Base Contrast" look the bake was judged with */}
       <BrightnessContrast brightness={-0.01} contrast={0.12} />
-      <SMAA />
     </EffectComposer>
   );
 }

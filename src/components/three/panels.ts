@@ -62,6 +62,8 @@ function finishMaterial(f: Finish) {
       envMapIntensity: 0.2,
       alphaMap: jaaliTex(),
       alphaTest: 0.5,
+      // cut-out edges resolved per MSAA sample instead of one hard cut per pixel: no sparkle on the lattice from afar
+      alphaToCoverage: true,
     });
     if (f.tex) (m as THREE.MeshStandardMaterial).map = tex(`${f.tex}/diff.jpg`, { srgb: true, rot: Math.PI / 2 });
   } else if (f.tex) {
@@ -97,7 +99,7 @@ function fluted(across: number, along: number, mat: THREE.Material) {
     // Geometric ambient occlusion in the valley recesses:
     let ao = 0.55 + 0.45 * (1.0 - Math.abs(s));
     if ((fi % perPanel === 0 && fr < 0.04) || i === cols) {
-      z = -0.001;
+      z = 0.0008; // the joint stays just in front of the wall: dipping behind it z-fights into flickering dashes
       ao = 0.38;
     }
     xs.push((i / cols) * across - across / 2);
